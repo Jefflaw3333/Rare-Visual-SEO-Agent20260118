@@ -6,10 +6,12 @@ import ResearchTool from './components/ResearchTool';
 import LocalSeoTool from './components/LocalSeoTool';
 import ChatAssistant from './components/ChatAssistant';
 import QuickIdeas from './components/QuickIdeas';
+import SettingsModal from './components/SettingsModal';
 import { AppView } from './types';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.ARTICLE_GENERATOR);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const renderView = () => {
     switch (currentView) {
@@ -32,10 +34,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full bg-slate-950 text-slate-200 overflow-hidden">
-      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+      <Sidebar
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
       <main className="flex-1 relative h-full overflow-hidden">
         {renderView()}
       </main>
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };

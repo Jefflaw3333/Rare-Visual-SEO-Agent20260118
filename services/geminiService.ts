@@ -1,12 +1,18 @@
 import { GoogleGenAI, Type, Schema, FunctionDeclaration } from "@google/genai";
 import { GeneratedArticle, ArticleConfig } from "../types";
 
-const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAiClient = () => {
+  const apiKey = import.meta.env.VITE_API_KEY || localStorage.getItem('gemini_api_key');
+  if (!apiKey) {
+    console.warn("Missing API Key: Set VITE_API_KEY in .env or 'gemini_api_key' in localStorage");
+  }
+  return new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY' });
+};
 
 // --- Article Generation (Gemini 3 Pro) ---
 export const generateSEOArticle = async (config: ArticleConfig): Promise<GeneratedArticle> => {
   const ai = getAiClient();
-  
+
   // Logic to determine structure based on Intent
   let intentInstruction = "";
   switch (config.searchIntent) {
@@ -167,7 +173,7 @@ export const localSeoQuery = async (query: string, lat?: number, lng?: number) =
   const config: any = {
     tools: [{ googleMaps: {} }],
   };
-  
+
   if (lat && lng) {
     config.toolConfig = {
       retrievalConfig: {
@@ -198,7 +204,7 @@ export const generateQuickIdeas = async (topic: string) => {
 };
 
 // --- Chat (Gemini 3 Pro) ---
-export const sendChatMessage = async (history: {role: string, parts: {text: string}[]}[], message: string) => {
+export const sendChatMessage = async (history: { role: string, parts: { text: string }[] }[], message: string) => {
   const ai = getAiClient();
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
@@ -215,7 +221,7 @@ export const sendChatMessage = async (history: {role: string, parts: {text: stri
 export const generateImage = async (prompt: string, size: "1K" | "2K" | "4K" = "1K") => {
   // Use a fresh client to pick up the key if selected via UI
   const ai = getAiClient();
-  
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
     contents: {
@@ -228,7 +234,7 @@ export const generateImage = async (prompt: string, size: "1K" | "2K" | "4K" = "
       }
     }
   });
-  
+
   // Extract image
   for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) {
@@ -243,7 +249,7 @@ export const editImage = async (base64Image: string, prompt: string) => {
   const ai = getAiClient();
   // Remove data URL header if present for sending to API
   const base64Data = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
-  
+
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {

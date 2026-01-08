@@ -1,21 +1,23 @@
 import React from 'react';
 import { AppView } from '../types';
-import { 
-  LayoutDashboard, 
-  PenTool, 
-  Image as ImageIcon, 
-  Search, 
-  MapPin, 
-  MessageSquare, 
-  Zap 
+import {
+  LayoutDashboard,
+  PenTool,
+  Image as ImageIcon,
+  Search,
+  MapPin,
+  MessageSquare,
+  Zap,
+  Settings
 } from 'lucide-react';
 
 interface SidebarProps {
   currentView: AppView;
   onViewChange: (view: AppView) => void;
+  onOpenSettings: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onOpenSettings }) => {
   const menuItems = [
     { id: AppView.ARTICLE_GENERATOR, label: 'SEO Writer', icon: PenTool },
     { id: AppView.RESEARCH, label: 'SERP Research', icon: Search },
@@ -33,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
         </div>
         <span className="text-white font-bold text-lg hidden md:block tracking-tight">RareVisual</span>
       </div>
-      
+
       <nav className="flex-1 py-6 space-y-2 px-3">
         {menuItems.map((item) => {
           const Icon = item.icon;
@@ -42,11 +44,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
             <button
               key={item.id}
               onClick={() => onViewChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
-                isActive 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' 
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${isActive
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
             >
               <Icon size={20} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'} />
               <span className="hidden md:block font-medium">{item.label}</span>
@@ -54,7 +55,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           );
         })}
       </nav>
-    </div>
+
+
+      <div className="p-3 border-t border-slate-800">
+        <button
+          onClick={onOpenSettings}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-slate-400 hover:bg-slate-800 hover:text-white group"
+        >
+          <Settings size={20} className="text-slate-400 group-hover:text-white" />
+          <span className="hidden md:block font-medium">Settings</span>
+        </button>
+      </div>
+    </div >
   );
 };
 
