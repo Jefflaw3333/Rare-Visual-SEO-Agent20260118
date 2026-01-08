@@ -1,0 +1,7 @@
+{
+  "name": "Rare Visual SEO Agent 20260108",
+  "description": "High-performance SEO content architect and visual studio powered by Gemini. Features article generation, SERP analysis, image creation/editing, and local SEO tools.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
