@@ -11,6 +11,102 @@ const getAiClient = () => {
 
 // --- Article Generation (Gemini 3 Pro) ---
 export const generateSEOArticle = async (config: ArticleConfig): Promise<GeneratedArticle> => {
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      seo_metadata: {
+        type: Type.OBJECT,
+        properties: {
+          meta_title: { type: Type.STRING },
+          meta_description: { type: Type.STRING },
+          url_slug_suggestion: { type: Type.STRING },
+          primary_keyword_focus: { type: Type.STRING },
+        },
+        required: ["meta_title", "meta_description", "url_slug_suggestion", "primary_keyword_focus"]
+      },
+      article_content: {
+        type: Type.OBJECT,
+        properties: {
+          h1_title: { type: Type.STRING },
+          snippet_bait: { type: Type.STRING, description: "Markdown bullet points of key takeaways (Snippet Bait)" },
+          body_markdown: { type: Type.STRING, description: "Full article body in Markdown with H2, H3, and bolded keywords. High burstiness." },
+          faq_section: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                question: { type: Type.STRING },
+                answer: { type: Type.STRING },
+              },
+              required: ["question", "answer"]
+            }
+          }
+        },
+        required: ["h1_title", "snippet_bait", "body_markdown", "faq_section"]
+      },
+      media_suggestions: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            placement: { type: Type.STRING },
+            image_prompt: { type: Type.STRING },
+            alt_text: { type: Type.STRING },
+          },
+          required: ["placement", "image_prompt", "alt_text"]
+        }
+      },
+      internal_linking_suggestions: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            anchor_text: { type: Type.STRING },
+            target_page_context: { type: Type.STRING, description: "e.g., 'Collection Page' or 'Blog Post about Leather'" },
+            reason: { type: Type.STRING },
+          },
+          required: ["anchor_text", "target_page_context", "reason"]
+        }
+      }
+    },
+    required: ["seo_metadata", "article_content", "media_suggestions", "internal_linking_suggestions"]
+  };
+
+  // SaaS Mode: Use Backend Proxy
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  if (backendUrl) {
+    try {
+      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-3-pro-preview`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': `Bearer ${clerkToken}` // TODO: Add Clerk Token here when we integrate Clerk on frontend
+        },
+        body: JSON.stringify({
+          contents: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`,
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: schema, // Note: Schema might need to be simpler for raw JSON or handle it on backend
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Backend Error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      // The backend returns the raw Gemini response structure
+      // We need to parse the candidate text just like the SDK does
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error("No response generated from backend");
+      return JSON.parse(text) as GeneratedArticle;
+    } catch (e) {
+      console.error("Backend failed, falling back to local key if available", e);
+      // Fallback to local logic below
+    }
+  }
+
   const ai = getAiClient();
 
   // Logic to determine structure based on Intent
@@ -78,66 +174,7 @@ export const generateSEOArticle = async (config: ArticleConfig): Promise<Generat
     5. Suggest Visuals & Links.
   `;
 
-  const schema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-      seo_metadata: {
-        type: Type.OBJECT,
-        properties: {
-          meta_title: { type: Type.STRING },
-          meta_description: { type: Type.STRING },
-          url_slug_suggestion: { type: Type.STRING },
-          primary_keyword_focus: { type: Type.STRING },
-        },
-        required: ["meta_title", "meta_description", "url_slug_suggestion", "primary_keyword_focus"]
-      },
-      article_content: {
-        type: Type.OBJECT,
-        properties: {
-          h1_title: { type: Type.STRING },
-          snippet_bait: { type: Type.STRING, description: "Markdown bullet points of key takeaways (Snippet Bait)" },
-          body_markdown: { type: Type.STRING, description: "Full article body in Markdown with H2, H3, and bolded keywords. High burstiness." },
-          faq_section: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                question: { type: Type.STRING },
-                answer: { type: Type.STRING },
-              },
-              required: ["question", "answer"]
-            }
-          }
-        },
-        required: ["h1_title", "snippet_bait", "body_markdown", "faq_section"]
-      },
-      media_suggestions: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            placement: { type: Type.STRING },
-            image_prompt: { type: Type.STRING },
-            alt_text: { type: Type.STRING },
-          },
-          required: ["placement", "image_prompt", "alt_text"]
-        }
-      },
-      internal_linking_suggestions: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            anchor_text: { type: Type.STRING },
-            target_page_context: { type: Type.STRING, description: "e.g., 'Collection Page' or 'Blog Post about Leather'" },
-            reason: { type: Type.STRING },
-          },
-          required: ["anchor_text", "target_page_context", "reason"]
-        }
-      }
-    },
-    required: ["seo_metadata", "article_content", "media_suggestions", "internal_linking_suggestions"]
-  };
+
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
