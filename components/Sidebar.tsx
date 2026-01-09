@@ -10,6 +10,12 @@ import {
   Zap,
   Settings
 } from 'lucide-react';
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  UserButton
+} from "@clerk/clerk-react";
 
 interface SidebarProps {
   currentView: AppView;
@@ -56,8 +62,27 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onOpenSett
         })}
       </nav>
 
+      <div className="p-3 border-t border-slate-800 space-y-2">
+        {/* Auth Section */}
+        <div className="flex justify-center md:justify-start px-3">
+          <SignedIn>
+            <div className="flex items-center gap-3">
+              <UserButton afterSignOutUrl="/" />
+              <span className="hidden md:block text-sm font-medium text-slate-400">Account</span>
+            </div>
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" x2="3" y1="12" y2="12" /></svg>
+                </div>
+                <span className="hidden md:block font-medium">Sign In</span>
+              </button>
+            </SignInButton>
+          </SignedOut>
+        </div>
 
-      <div className="p-3 border-t border-slate-800">
         <button
           onClick={onOpenSettings}
           className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-slate-400 hover:bg-slate-800 hover:text-white group"

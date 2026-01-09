@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"bytes"
 	"io"
 	"net/http"
 	"os"

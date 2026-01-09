@@ -17,7 +17,9 @@ import (
 
 func main() {
 	// Load .env if exists (local dev)
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: Error loading .env file: %v", err)
+	}
 
 	// Initialize dependencies
 	db := database.NewNeonDB()

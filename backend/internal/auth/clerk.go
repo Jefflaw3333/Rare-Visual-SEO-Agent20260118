@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"

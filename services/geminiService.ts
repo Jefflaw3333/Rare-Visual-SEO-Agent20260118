@@ -10,7 +10,7 @@ const getAiClient = () => {
 };
 
 // --- Article Generation (Gemini 3 Pro) ---
-export const generateSEOArticle = async (config: ArticleConfig): Promise<GeneratedArticle> => {
+export const generateSEOArticle = async (config: ArticleConfig, token?: string | null): Promise<GeneratedArticle> => {
   const schema: Schema = {
     type: Type.OBJECT,
     properties: {
@@ -76,12 +76,16 @@ export const generateSEOArticle = async (config: ArticleConfig): Promise<Generat
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
   if (backendUrl) {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-3-pro-preview`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${clerkToken}` // TODO: Add Clerk Token here when we integrate Clerk on frontend
-        },
+        headers,
         body: JSON.stringify({
           contents: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`,
           generationConfig: {
