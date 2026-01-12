@@ -83,7 +83,7 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-3-pro-preview`, {
+      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-1.5-pro`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -181,7 +181,7 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
 
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-1.5-pro-latest',
     contents: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`,
     config: {
       systemInstruction: systemInstruction,
