@@ -8,6 +8,7 @@ import (
 	"os"
 	"saas-backend/internal/auth"
 	"saas-backend/internal/database"
+	"saas-backend/internal/payment"
 	"saas-backend/internal/proxy"
 	"saas-backend/internal/ratelimit"
 
@@ -127,6 +128,10 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(fmt.Sprintf(`{"credits": %d, "message": "Redemption successful"}`, newBalance)))
 		})
+
+		// Stripe Checkout
+		paymentHandler := payment.NewPaymentHandler()
+		r.Post("/api/create-checkout-session", paymentHandler.HandleCreateCheckoutSession)
 	})
 
 	port := os.Getenv("PORT")
