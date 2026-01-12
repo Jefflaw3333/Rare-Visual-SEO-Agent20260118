@@ -72,20 +72,24 @@ func (d *NeonDB) RedeemPromoCode(userID string, code string) (int, error) {
 	}
 	defer tx.Rollback()
 
-	// 3. Check if already used
-	var exists bool
-	err = tx.QueryRow("SELECT exists(SELECT 1 FROM redemptions WHERE user_id=$1 AND code=$2)", userID, code).Scan(&exists)
-	if err != nil {
-		return 0, err
-	}
-	if exists {
-		return 0, fmt.Errorf("code already redeemed")
+	// 3. Check if already used (Skip for test01 to allow infinite reuse)
+	if code != "test01" {
+		var exists bool
+		err = tx.QueryRow("SELECT exists(SELECT 1 FROM redemptions WHERE user_id=$1 AND code=$2)", userID, code).Scan(&exists)
+		if err != nil {
+			return 0, err
+		}
+		if exists {
+			return 0, fmt.Errorf("code already redeemed")
+		}
 	}
 
-	// 4. Record Redemption
-	_, err = tx.Exec("INSERT INTO redemptions (user_id, code) VALUES ($1, $2)", userID, code)
-	if err != nil {
-		return 0, err
+	// 4. Record Redemption (Skip for test01 to avoid unique constraint violation)
+	if code != "test01" {
+		_, err = tx.Exec("INSERT INTO redemptions (user_id, code) VALUES ($1, $2)", userID, code)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// 5. Add Credits (Ensure user exists first just in case, though GetCredits handles it, but for locking row...)
