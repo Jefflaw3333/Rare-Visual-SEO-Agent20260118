@@ -49,17 +49,17 @@ func (h *PaymentHandler) HandleCreateCheckoutSession(w http.ResponseWriter, r *h
 	// Define Packages (Keep in sync with Frontend TIERS)
 	switch req.PackageID {
 	case "tier_basic":
-		name = "5 Credits Pack"
-		amount = 100 // $1.00
-		credits = 5
+		name = "10 Credits (Basic)"
+		amount = 490 // $4.90
+		credits = 10
 	case "tier_standard":
-		name = "18 Credits Pack"
-		amount = 300 // $3.00
-		credits = 18
+		name = "50 Credits (Standard)"
+		amount = 1990 // $19.90
+		credits = 50
 	case "tier_pro":
-		name = "30 Credits Pack"
-		amount = 400 // $4.00
-		credits = 30
+		name = "100 Credits (Pro)"
+		amount = 3490 // $34.90
+		credits = 100
 	default:
 		http.Error(w, "Invalid Package ID", http.StatusBadRequest)
 		return

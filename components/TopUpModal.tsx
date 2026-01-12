@@ -6,25 +6,50 @@ interface PricingTier {
     id: string;
     credits: number;
     price: number;
-    label?: string;
+    labelEn?: string;
+    labelCn?: string;
     isPopular?: boolean;
 }
 
 const TIERS: PricingTier[] = [
-    { id: 'tier_basic', credits: 5, price: 1.00 },
-    { id: 'tier_standard', credits: 18, price: 3.00, label: 'Gift 20%' },
-    { id: 'tier_pro', credits: 30, price: 4.00, label: 'Gift 50%', isPopular: true },
+    { id: 'tier_basic', credits: 10, price: 4.90 },
+    { id: 'tier_standard', credits: 50, price: 19.90, labelEn: 'Save 18%', labelCn: '省 18%' },
+    { id: 'tier_pro', credits: 100, price: 34.90, labelEn: 'Save 30%', labelCn: '省 30%', isPopular: true },
 ];
 
 interface TopUpModalProps {
     isOpen: boolean;
     onClose: () => void;
+    lang: 'en' | 'cn';
 }
 
-const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
+const translations = {
+    en: {
+        title: "Get Credits",
+        subtitle: "Purchase credits to continue your analysis.",
+        bestValue: "BEST VALUE",
+        credits: "CREDITS",
+        pay: "Pay",
+        secure: "Secured by Stripe SSL. Non-refundable.",
+        paymentMethod: "Secure Payment via Stripe"
+    },
+    cn: {
+        title: "获取积分",
+        subtitle: "购买积分以继续使用 SEO 分析工具。",
+        bestValue: "最超值",
+        credits: "积分",
+        pay: "支付",
+        secure: "Stripe SSL 安全支付。虚拟商品概不退款。",
+        paymentMethod: "安全支付"
+    }
+};
+
+const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, lang }) => {
     const [selectedTier, setSelectedTier] = useState<string>('tier_pro');
     const [loading, setLoading] = useState(false);
     const { getToken } = useAuth();
+
+    const t = translations[lang];
 
     if (!isOpen) return null;
 
@@ -78,8 +103,8 @@ const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
                     >
                         <X size={20} />
                     </button>
-                    <h2 className="text-2xl font-bold text-slate-900">Get Credits</h2>
-                    <p className="text-slate-500 mt-1">Purchase credits to continue your analysis.</p>
+                    <h2 className="text-2xl font-bold text-slate-900">{t.title}</h2>
+                    <p className="text-slate-500 mt-1">{t.subtitle}</p>
                 </div>
 
                 {/* Content */}
@@ -100,17 +125,17 @@ const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
                             >
                                 {tier.isPopular && (
                                     <div className="absolute -top-3 bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                        Best Value
+                                        {t.bestValue}
                                     </div>
                                 )}
 
                                 <span className="text-2xl font-black text-slate-900">{tier.credits}</span>
-                                <span className="text-xs font-bold text-slate-500 uppercase mb-1">Credits</span>
+                                <span className="text-xs font-bold text-slate-500 uppercase mb-1">{t.credits}</span>
                                 <span className="text-lg font-bold text-indigo-600">${tier.price.toFixed(2)}</span>
 
-                                {tier.label && (
+                                {(lang === 'cn' ? tier.labelCn : tier.labelEn) && (
                                     <span className="mt-1 text-[10px] font-medium text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
-                                        {tier.label}
+                                        {lang === 'cn' ? tier.labelCn : tier.labelEn}
                                     </span>
                                 )}
                             </button>
@@ -121,7 +146,7 @@ const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
                     <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
                         <div className="flex items-center gap-3 text-slate-600 mb-2">
                             <CreditCard size={16} />
-                            <span className="text-sm font-medium">Secure Payment via Stripe</span>
+                            <span className="text-sm font-medium">{t.paymentMethod}</span>
                         </div>
                         <div className="flex gap-2 opacity-50">
                             {/* Simple visual placeholders for card logos */}
@@ -140,12 +165,12 @@ const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose }) => {
                         {loading ? (
                             <Loader2 className="animate-spin" />
                         ) : (
-                            `Pay $${currentTier.price.toFixed(2)}`
+                            `${t.pay} $${currentTier.price.toFixed(2)}`
                         )}
                     </button>
 
                     <p className="text-center text-xs text-slate-400">
-                        Secured by Stripe SSL. Non-refundable.
+                        {t.secure}
                     </p>
 
                 </div>
