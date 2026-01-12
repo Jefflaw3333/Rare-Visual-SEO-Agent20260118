@@ -87,10 +87,18 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
         method: 'POST',
         headers,
         body: JSON.stringify({
-          contents: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`,
+          systemInstruction: {
+            parts: [{ text: systemInstruction }]
+          },
+          contents: [{
+            role: "user",
+            parts: [{
+              text: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`
+            }]
+          }],
           generationConfig: {
             responseMimeType: "application/json",
-            responseSchema: schema, // Note: Schema might need to be simpler for raw JSON or handle it on backend
+            responseSchema: schema,
           }
         })
       });
