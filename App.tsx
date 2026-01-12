@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from "@clerk/clerk-react";
 import Sidebar from './components/Sidebar';
 import ArticleGenerator from './components/ArticleGenerator';
 import ImageStudio from './components/ImageStudio';
@@ -14,6 +15,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.ARTICLE_GENERATOR);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(true);
+  const { isSignedIn } = useAuth();
 
   useEffect(() => {
     const checkKey = () => {
@@ -66,14 +68,14 @@ const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
       <main className="flex-1 relative h-full overflow-hidden flex flex-col">
-        {!hasApiKey && (
+        {(!hasApiKey && !isSignedIn) && (
           <div
             className="bg-amber-500/10 border-b border-amber-500/20 py-2 px-4 flex items-center justify-between cursor-pointer hover:bg-amber-500/20 transition-colors"
             onClick={() => setIsSettingsOpen(true)}
           >
             <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
               <AlertTriangle size={16} />
-              <span>API Key Missing: The app functionality is disabled. Click here to configure.</span>
+              <span>API Key Missing: Sign in or configure your own key to proceed.</span>
             </div>
             <button className="bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
               Configure Key

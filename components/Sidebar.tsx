@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppView } from '../types';
 import {
   LayoutDashboard,
@@ -14,7 +14,8 @@ import {
   SignedIn,
   SignedOut,
   SignInButton,
-  UserButton
+  UserButton,
+  useAuth
 } from "@clerk/clerk-react";
 
 interface SidebarProps {
@@ -24,6 +25,35 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onOpenSettings }) => {
+  const { getToken, isSignedIn } = useAuth();
+  const [credits, setCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!isSignedIn) return;
+      try {
+        const token = await getToken();
+        const backendUrl = import.meta.env.VITE_BACKEND_URL;
+        if (!backendUrl) return;
+
+        const res = await fetch(`${backendUrl}/api/user/credits`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCredits(data.credits);
+        }
+      } catch (e) {
+        console.error("Failed to fetch credits", e);
+      }
+    };
+
+    fetchCredits();
+    // Refresh every 10s or on view change roughly
+    const interval = setInterval(fetchCredits, 10000);
+    return () => clearInterval(interval);
+  }, [isSignedIn, getToken, currentView]);
+
   const menuItems = [
     { id: AppView.ARTICLE_GENERATOR, label: 'SEO Writer', icon: PenTool },
     { id: AppView.RESEARCH, label: 'SERP Research', icon: Search },
@@ -63,6 +93,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onOpenSett
       </nav>
 
       <div className="p-3 border-t border-slate-800 space-y-2">
+        {/* Credits Display */}
+        {isSignedIn && credits !== null && (
+          <div className="flex items-center justify-center md:justify-between px-4 py-2 bg-slate-800/50 rounded-lg mb-2">
+            <div className="flex items-center gap-2">
+              <Zap size={14} className="text-yellow-400 fill-yellow-400" />
+              <span className="hidden md:block text-xs font-bold text-slate-300">CREDITS</span>
+            </div>
+            <span className="hidden md:block text-sm font-mono text-white">{credits}</span>
+          </div>
+        )}
+
         {/* Auth Section */}
         <div className="flex justify-center md:justify-start px-3">
           <SignedIn>

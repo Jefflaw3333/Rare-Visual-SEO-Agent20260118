@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -58,8 +59,48 @@ func main() {
 		r.Use(limiter.Middleware)   // 2. Rate Limit
 		r.Use(db.Middleware)        // 3. Log usage to DB
 
-		// Proxy endpoints
-		r.Post("/api/generate-content", proxy.HandleGeminiProxy)
+		// Get Credits (Read-Only)
+		r.Get("/api/user/credits", func(w http.ResponseWriter, r *http.Request) {
+			userID, _ := r.Context().Value("user_id").(string)
+			credits, err := db.GetCredits(userID)
+			if err != nil {
+				http.Error(w, "Failed to fetch credits", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			// Manual JSON string construction to avoid importing encoding/json if not already there,
+			// but better to import it for robustness. Let's assume user is okay with simple string for now or I add import.
+			// Actually I should check imports. 'log', 'net/http', 'os' are there. 'encoding/json' is NOT.
+			// I will use fmt.Sprintf for simplicity or run a separate replace to add import.
+			// Let's rely on adding the import in a separate block or verify if I can add it here.
+			// Chi router allows regex replaces so I will do two blocks.
+			w.Write([]byte(fmt.Sprintf(`{"credits": %d}`, credits)))
+		})
+
+		// Generation which costs credits
+		r.With(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				userID, _ := r.Context().Value("user_id").(string)
+				if userID == "" {
+					http.Error(w, "Unauthorized", http.StatusUnauthorized)
+					return
+				}
+
+				success, err := db.DeductCredit(userID)
+				if err != nil {
+					log.Printf("Credit Error: %v", err)
+					http.Error(w, "Server Error", http.StatusInternalServerError)
+					return
+				}
+				if !success {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusPaymentRequired)
+					w.Write([]byte(`{"error": "Insufficient credits", "code": "NO_CREDITS"}`))
+					return
+				}
+				next.ServeHTTP(w, r)
+			})
+		}).Post("/api/generate-content", proxy.HandleGeminiProxy)
 	})
 
 	port := os.Getenv("PORT")
