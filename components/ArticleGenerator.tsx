@@ -113,7 +113,7 @@ const ArticleGenerator: React.FC = () => {
       setGeneratedData(result);
     } catch (error) {
       console.error(error);
-      alert("Failed to generate article. Please try again.");
+      alert(`Failed to generate article: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -379,8 +379,8 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
               onClick={handleGenerate}
               disabled={loading || !config.mainKeyword}
               className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${loading || !config.mainKeyword
-                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg hover:shadow-indigo-500/25'
+                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg hover:shadow-indigo-500/25'
                 }`}
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
