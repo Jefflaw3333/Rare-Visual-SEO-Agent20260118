@@ -8,7 +8,8 @@ import {
   MapPin,
   MessageSquare,
   Zap,
-  Settings
+  Settings,
+  CreditCard
 } from 'lucide-react';
 import {
   SignedIn,
