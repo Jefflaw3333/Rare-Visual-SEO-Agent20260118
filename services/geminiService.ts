@@ -83,7 +83,7 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-1.5-pro`, {
+      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-3.0-pro`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -96,7 +96,8 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
       });
 
       if (!response.ok) {
-        throw new Error(`Backend Error: ${response.statusText}`);
+        const errText = await response.text();
+        throw new Error(`Backend Error (${response.status}): ${errText}`);
       }
 
       const data = await response.json();
@@ -106,8 +107,8 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
       if (!text) throw new Error("No response generated from backend");
       return JSON.parse(text) as GeneratedArticle;
     } catch (e) {
-      console.error("Backend failed, falling back to local key if available", e);
-      // Fallback to local logic below
+      console.error("Backend request failed:", e);
+      throw e; // Do NOT fallback to local key, preventing confusion
     }
   }
 
@@ -181,7 +182,7 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
 
 
   const response = await ai.models.generateContent({
-    model: 'gemini-1.5-pro-latest',
+    model: 'gemini-3.0-pro',
     contents: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`,
     config: {
       systemInstruction: systemInstruction,
