@@ -40,11 +40,18 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	// Routes
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
+	// Public routes
+	r.Group(func(r chi.Router) {
+		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		})
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status":"running", "message":"RareVisual Backend API is online. Please visit the frontend application."}`))
+		})
 	})
-
 	// Protected Routes
 	r.Group(func(r chi.Router) {
 		r.Use(clerkAuth.Middleware) // 1. Verify Identity
