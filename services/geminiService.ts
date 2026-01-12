@@ -72,56 +72,6 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
     required: ["seo_metadata", "article_content", "media_suggestions", "internal_linking_suggestions"]
   };
 
-  // SaaS Mode: Use Backend Proxy
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  if (backendUrl) {
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-3.0-pro`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          },
-          contents: [{
-            role: "user",
-            parts: [{
-              text: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`
-            }]
-          }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: schema,
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Backend Error (${response.status}): ${errText}`);
-      }
-
-      const data = await response.json();
-      // The backend returns the raw Gemini response structure
-      // We need to parse the candidate text just like the SDK does
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error("No response generated from backend");
-      return JSON.parse(text) as GeneratedArticle;
-    } catch (e) {
-      console.error("Backend request failed:", e);
-      throw e; // Do NOT fallback to local key, preventing confusion
-    }
-  }
-
-  const ai = getAiClient();
-
   // Logic to determine structure based on Intent
   let intentInstruction = "";
   switch (config.searchIntent) {
@@ -186,6 +136,58 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
     4. Generate FAQ (Real user questions, not generic ones).
     5. Suggest Visuals & Links.
   `;
+
+  // SaaS Mode: Use Backend Proxy
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  if (backendUrl) {
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-3.0-pro`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: systemInstruction }]
+          },
+          contents: [{
+            role: "user",
+            parts: [{
+              text: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`
+            }]
+          }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: schema,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Backend Error (${response.status}): ${errText}`);
+      }
+
+      const data = await response.json();
+      // The backend returns the raw Gemini response structure
+      // We need to parse the candidate text just like the SDK does
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error("No response generated from backend");
+      return JSON.parse(text) as GeneratedArticle;
+    } catch (e) {
+      console.error("Backend request failed:", e);
+      throw e; // Do NOT fallback to local key, preventing confusion
+    }
+  }
+
+  const ai = getAiClient();
+
+
 
 
 
