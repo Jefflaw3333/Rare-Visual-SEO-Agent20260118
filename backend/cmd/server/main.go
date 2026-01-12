@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -101,6 +102,31 @@ func main() {
 				next.ServeHTTP(w, r)
 			})
 		}).Post("/api/generate-content", proxy.HandleGeminiProxy)
+
+		// Redeem Promo Code
+		r.Post("/api/user/redeem", func(w http.ResponseWriter, r *http.Request) {
+			userID, _ := r.Context().Value("user_id").(string)
+
+			var req struct {
+				Code string `json:"code"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "Invalid request body", http.StatusBadRequest)
+				return
+			}
+
+			newBalance, err := db.RedeemPromoCode(userID, req.Code)
+			if err != nil {
+				// Simple error handling, could be improved to distinguish "already used" vs "invalid"
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(fmt.Sprintf(`{"error": "%v"}`, err)))
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(fmt.Sprintf(`{"credits": %d, "message": "Redemption successful"}`, newBalance)))
+		})
 	})
 
 	port := os.Getenv("PORT")

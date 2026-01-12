@@ -95,12 +95,49 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, onOpenSett
       <div className="p-3 border-t border-slate-800 space-y-2">
         {/* Credits Display */}
         {isSignedIn && credits !== null && (
-          <div className="flex items-center justify-center md:justify-between px-4 py-2 bg-slate-800/50 rounded-lg mb-2">
-            <div className="flex items-center gap-2">
-              <Zap size={14} className="text-yellow-400 fill-yellow-400" />
-              <span className="hidden md:block text-xs font-bold text-slate-300">CREDITS</span>
+          <div className="flex flex-col gap-2 mb-2">
+            <div className="flex items-center justify-center md:justify-between px-4 py-2 bg-slate-800/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Zap size={14} className="text-yellow-400 fill-yellow-400" />
+                <span className="hidden md:block text-xs font-bold text-slate-300">CREDITS</span>
+              </div>
+              <span className="hidden md:block text-sm font-mono text-white">{credits}</span>
             </div>
-            <span className="hidden md:block text-sm font-mono text-white">{credits}</span>
+            <button
+              onClick={async () => {
+                const code = prompt("Enter Promo Code (e.g., test01):");
+                if (!code) return;
+                try {
+                  const token = await getToken();
+                  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+                  if (!backendUrl) return;
+
+                  const res = await fetch(`${backendUrl}/api/user/redeem`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ code })
+                  });
+
+                  if (res.ok) {
+                    const data = await res.json();
+                    alert(`Success! New Balance: ${data.credits}`);
+                    setCredits(data.credits);
+                  } else {
+                    const err = await res.json();
+                    alert(`Redemption Failed: ${err.error || 'Unknown error'}`);
+                  }
+                } catch (e) {
+                  alert("Redemption error");
+                  console.error(e);
+                }
+              }}
+              className="hidden md:block w-full text-xs font-bold bg-green-600 hover:bg-green-500 text-white py-1 rounded transition-colors text-center"
+            >
+              TOP UP
+            </button>
           </div>
         )}
 

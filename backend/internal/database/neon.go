@@ -37,18 +37,70 @@ func NewNeonDB() *NeonDB {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
-
-	// Add Users table for Credit System
+	// Add Redemptions table to track usage
 	db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id VARCHAR(255) PRIMARY KEY,
-			email VARCHAR(255),
-			credits INT DEFAULT 10,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		CREATE TABLE IF NOT EXISTS redemptions (
+			id SERIAL PRIMARY KEY,
+			user_id VARCHAR(255),
+			code VARCHAR(50),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(user_id, code)
 		)
 	`)
 
 	return &NeonDB{db: db}
+}
+
+// Redeem a promo code
+func (d *NeonDB) RedeemPromoCode(userID string, code string) (int, error) {
+	if d.db == nil {
+		return 0, fmt.Errorf("database feature disabled")
+	}
+
+	// 1. Validate Code (Hardcoded for now as requested)
+	var bonusCredits int
+	if code == "test01" {
+		bonusCredits = 10
+	} else {
+		return 0, fmt.Errorf("invalid promo code")
+	}
+
+	// 2. Start Transaction
+	tx, err := d.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// 3. Check if already used
+	var exists bool
+	err = tx.QueryRow("SELECT exists(SELECT 1 FROM redemptions WHERE user_id=$1 AND code=$2)", userID, code).Scan(&exists)
+	if err != nil {
+		return 0, err
+	}
+	if exists {
+		return 0, fmt.Errorf("code already redeemed")
+	}
+
+	// 4. Record Redemption
+	_, err = tx.Exec("INSERT INTO redemptions (user_id, code) VALUES ($1, $2)", userID, code)
+	if err != nil {
+		return 0, err
+	}
+
+	// 5. Add Credits (Ensure user exists first just in case, though GetCredits handles it, but for locking row...)
+	_, err = tx.Exec("INSERT INTO users (id) VALUES ($1) ON CONFLICT (id) DO NOTHING", userID)
+	if err != nil {
+		return 0, err
+	}
+
+	var newBalance int
+	err = tx.QueryRow("UPDATE users SET credits = credits + $1 WHERE id=$2 RETURNING credits", bonusCredits, userID).Scan(&newBalance)
+	if err != nil {
+		return 0, err
+	}
+
+	return newBalance, tx.Commit()
 }
 
 // Check if user exists, if not create with default credits
