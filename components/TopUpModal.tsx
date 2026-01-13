@@ -40,13 +40,22 @@ const translations = {
         credits: "积分",
         pay: "支付",
         secure: "Stripe SSL 安全支付。虚拟商品概不退款。",
-        paymentMethod: "安全支付"
+        paymentMethod: "安全支付",
+        haveCode: "有优惠码？",
+        enterCode: "输入优惠码",
+        redeem: "兑换",
+        redeeming: "兑换中...",
+        codeSuccess: "兑换成功！",
+        codeError: "无效的优惠码"
     }
 };
 
 const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, lang }) => {
     const [selectedTier, setSelectedTier] = useState<string>('tier_pro');
     const [loading, setLoading] = useState(false);
+    const [promoCode, setPromoCode] = useState('');
+    const [redeemLoading, setRedeemLoading] = useState(false);
+    const [redeemMsg, setRedeemMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const { getToken } = useAuth();
 
     const t = translations[lang];
@@ -86,6 +95,42 @@ const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, lang }) => {
             alert("Payment initiation failed: " + e.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRedeem = async () => {
+        if (!promoCode.trim()) return;
+        setRedeemLoading(true);
+        setRedeemMsg(null);
+        try {
+            const token = await getToken();
+            const backendUrl = import.meta.env.VITE_BACKEND_URL;
+            if (!backendUrl) {
+                alert("Backend not configured");
+                return;
+            }
+
+            const res = await fetch(`${backendUrl}/api/user/redeem`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ code: promoCode.trim() })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Redemption failed");
+            }
+
+            setRedeemMsg({ type: 'success', text: `Success! Balance: ${data.credits}` });
+            setPromoCode(''); // Clear input on success
+        } catch (e: any) {
+            console.error(e);
+            setRedeemMsg({ type: 'error', text: e.message || "Invalid code" });
+        } finally {
+            setRedeemLoading(false);
         }
     };
 
@@ -140,6 +185,34 @@ const TopUpModal: React.FC<TopUpModalProps> = ({ isOpen, onClose, lang }) => {
                                 )}
                             </button>
                         ))}
+                    </div>
+
+                    {/* Promo Code Section */}
+                    <div className="pt-2 border-t border-slate-100">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-medium text-slate-700">{lang === 'cn' ? translations.cn.haveCode : "Have a promo code?"}</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={promoCode}
+                                    onChange={(e) => setPromoCode(e.target.value)}
+                                    placeholder={lang === 'cn' ? translations.cn.enterCode : "Enter code"}
+                                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                />
+                                <button
+                                    onClick={handleRedeem}
+                                    disabled={redeemLoading || !promoCode.trim()}
+                                    className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {redeemLoading ? <Loader2 size={16} className="animate-spin" /> : (lang === 'cn' ? translations.cn.redeem : "Redeem")}
+                                </button>
+                            </div>
+                            {redeemMsg && (
+                                <p className={`text-xs ${redeemMsg.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                    {redeemMsg.text}
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {/* Payment Method Preview */}

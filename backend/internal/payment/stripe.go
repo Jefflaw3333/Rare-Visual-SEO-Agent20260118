@@ -83,8 +83,8 @@ func (h *PaymentHandler) HandleCreateCheckoutSession(w http.ResponseWriter, r *h
 			"user_id": userId,
 			"credits": fmt.Sprintf("%d", credits),
 		},
-		SuccessUrl: stripe.String(h.ResultURL + "?payment=success"),
-		CancelUrl:  stripe.String(h.ResultURL + "?payment=cancel"),
+		SuccessURL: stripe.String(h.ResultURL + "?payment=success"),
+		CancelURL:  stripe.String(h.ResultURL + "?payment=cancel"),
 	}
 
 	s, err := session.New(params)

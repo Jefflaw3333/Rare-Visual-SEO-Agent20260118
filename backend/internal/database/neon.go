@@ -57,10 +57,17 @@ func (d *NeonDB) RedeemPromoCode(userID string, code string) (int, error) {
 		return 0, fmt.Errorf("database feature disabled")
 	}
 
-	// 1. Validate Code (Hardcoded for now as requested)
+	// 1. Validate Code
 	var bonusCredits int
+	// Allow infinite reuse for test01 and test33
+	isTestCode := false
+
 	if code == "test01" {
 		bonusCredits = 10
+		isTestCode = true
+	} else if code == "test33" {
+		bonusCredits = 100
+		isTestCode = true
 	} else {
 		return 0, fmt.Errorf("invalid promo code")
 	}
@@ -72,8 +79,8 @@ func (d *NeonDB) RedeemPromoCode(userID string, code string) (int, error) {
 	}
 	defer tx.Rollback()
 
-	// 3. Check if already used (Skip for test01 to allow infinite reuse)
-	if code != "test01" {
+	// 3. Check if already used (Skip for test codes to allow infinite reuse)
+	if !isTestCode {
 		var exists bool
 		err = tx.QueryRow("SELECT exists(SELECT 1 FROM redemptions WHERE user_id=$1 AND code=$2)", userID, code).Scan(&exists)
 		if err != nil {
@@ -84,8 +91,8 @@ func (d *NeonDB) RedeemPromoCode(userID string, code string) (int, error) {
 		}
 	}
 
-	// 4. Record Redemption (Skip for test01 to avoid unique constraint violation)
-	if code != "test01" {
+	// 4. Record Redemption (Skip for test codes to avoid unique constraint violation)
+	if !isTestCode {
 		_, err = tx.Exec("INSERT INTO redemptions (user_id, code) VALUES ($1, $2)", userID, code)
 		if err != nil {
 			return 0, err
