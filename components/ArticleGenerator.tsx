@@ -204,7 +204,7 @@ const ArticleGenerator: React.FC = () => {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed");
+      if (!res.ok) throw new Error(data.error || data.message || "Failed");
 
       setPublishResult({ type: 'success', message: "Published successfully!" });
       setTimeout(() => setShowShopifyModal(false), 2000);
