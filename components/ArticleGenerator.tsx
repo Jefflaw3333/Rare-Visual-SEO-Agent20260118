@@ -3,7 +3,8 @@ import { useAuth } from "@clerk/clerk-react";
 import { ArticleConfig, GeneratedArticle, SavedTemplate } from '../types';
 import { generateSEOArticle, generateImage } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
-import { Loader2, Download, Copy, Image as ImageIcon, Check, Link as LinkIcon, ExternalLink, Code, FileText, Zap, BarChart3, LayoutTemplate, Plus, Save, Trash2, X } from 'lucide-react';
+import { marked } from 'marked';
+import { Loader2, Download, Copy, Image as ImageIcon, Check, Link as LinkIcon, ExternalLink, Code, FileText, Zap, BarChart3, LayoutTemplate, Plus, Save, Trash2, X, Globe, UploadCloud } from 'lucide-react';
 
 // Reusable Copy Button Component
 const CopyButton = ({
@@ -51,6 +52,16 @@ const ArticleGenerator: React.FC = () => {
   // State for image generation within article
   const [generatingImageIndex, setGeneratingImageIndex] = useState<number | null>(null);
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
+
+  // State for Scraped Images
+  const [scrapedImages, setScrapedImages] = useState<{ url: string, alt: string }[]>([]);
+  const [scraping, setScraping] = useState(false);
+
+  // State for Shopify Publish
+  const [showShopifyModal, setShowShopifyModal] = useState(false);
+  const [shopifyConfig, setShopifyConfig] = useState({ storeUrl: '', accessToken: '', blogId: '' });
+  const [publishing, setPublishing] = useState(false);
+  const [publishResult, setPublishResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   // Load templates on mount
   useEffect(() => {
@@ -138,6 +149,69 @@ const ArticleGenerator: React.FC = () => {
       alert("Error generating image. Ensure you have selected a paid API key for high-quality image generation.");
     } finally {
       setGeneratingImageIndex(null);
+    }
+  };
+
+  const handleScrapeImages = async () => {
+    if (!config.targetUrl) return;
+    setScraping(true);
+    try {
+      const token = await getToken();
+      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+      if (!backendUrl) return;
+
+      const res = await fetch(`${backendUrl}/api/tools/scrape-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ url: config.targetUrl })
+      });
+      const data = await res.json();
+      if (data.images) {
+        setScrapedImages(data.images);
+      }
+    } catch (e) {
+      console.error("Scraping failed", e);
+    } finally {
+      setScraping(false);
+    }
+  };
+
+  const handlePublishShopify = async () => {
+    if (!shopifyConfig.storeUrl || !shopifyConfig.accessToken || !shopifyConfig.blogId || !generatedData) return;
+    setPublishing(true);
+    setPublishResult(null);
+    try {
+      const token = await getToken();
+      const backendUrl = import.meta.env.VITE_BACKEND_URL;
+      if (!backendUrl) return;
+
+      const articlePayload = {
+        title: generatedData.seo_metadata.meta_title,
+        body_html: marked.parse(generatedData.article_content.body_markdown),
+        tags: generatedData.seo_metadata.primary_keyword_focus,
+        author: "RareVisual Agent"
+      };
+
+      const res = await fetch(`${backendUrl}/api/integrations/shopify/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          storeUrl: shopifyConfig.storeUrl,
+          accessToken: shopifyConfig.accessToken,
+          blogId: shopifyConfig.blogId,
+          article: articlePayload
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed");
+
+      setPublishResult({ type: 'success', message: "Published successfully!" });
+      setTimeout(() => setShowShopifyModal(false), 2000);
+    } catch (e: any) {
+      setPublishResult({ type: 'error', message: e.message });
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -315,6 +389,16 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
                 onChange={(e) => setConfig({ ...config, targetUrl: e.target.value })}
               />
               <p className="text-xs text-slate-500 mt-1">Add multiple URLs (one per line) for context.</p>
+              {config.targetUrl && (
+                <button
+                  onClick={handleScrapeImages}
+                  disabled={scraping}
+                  className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                >
+                  {scraping ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                  Fetch Images from URL
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -451,6 +535,14 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
                     Copy Article
                   </button>
                 )}
+                {/* Shopify Publish Button */}
+                <button
+                  onClick={() => setShowShopifyModal(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 ml-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-md transition-colors shadow-lg"
+                >
+                  <UploadCloud size={14} />
+                  Publish
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
@@ -648,6 +740,28 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
                         </div>
                       </div>
                     ))}
+
+
+                    {/* Scraped Images Section */}
+                    {scrapedImages.length > 0 && (
+                      <div className="max-w-3xl mx-auto space-y-6 mt-8 pt-8 border-t border-slate-800">
+                        <h3 className="text-xl font-bold text-white mb-4">Scraped Images</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {scrapedImages.map((img, idx) => (
+                            <div key={idx} className="group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-700">
+                              <img src={img.url} alt={img.alt} className="w-full h-32 object-cover" />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <CopyButton text={`![${img.alt || 'image'}](${img.url})`} className="p-2 bg-slate-800 rounded-full text-white hover:bg-indigo-600" size={16} title="Copy Markdown" />
+                                <a href={img.url} target="_blank" rel="noreferrer" className="p-2 bg-slate-800 rounded-full text-white hover:bg-indigo-600"><ExternalLink size={16} /></a>
+                              </div>
+                              <div className="p-2">
+                                <p className="text-xs text-slate-400 truncate">{img.alt || 'No Alt Text'}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -705,8 +819,66 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
           )}
         </div>
       </div>
+
+      <ShopifyModal
+        isOpen={showShopifyModal}
+        onClose={() => setShowShopifyModal(false)}
+        config={shopifyConfig}
+        setConfig={setShopifyConfig}
+        onPublish={handlePublishShopify}
+        publishing={publishing}
+        result={publishResult}
+      />
+    </div >
+  );
+};
+
+const ShopifyModal = ({ isOpen, onClose, config, setConfig, onPublish, publishing, result }: any) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-900 rounded-xl border border-slate-700 p-6 w-full max-w-md">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-white">Publish to Shopify</h3>
+          <button onClick={onClose}><X className="text-slate-400" /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Store URL (e.g. my-store.myshopify.com)</label>
+            <input className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white"
+              value={config.storeUrl} onChange={e => setConfig({ ...config, storeUrl: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Access Token (Admin API)</label>
+            <input className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" type="password"
+              value={config.accessToken} onChange={e => setConfig({ ...config, accessToken: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Blog ID</label>
+            <input className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" placeholder="e.g. 8372661234"
+              value={config.blogId} onChange={e => setConfig({ ...config, blogId: e.target.value })} />
+            <p className="text-xs text-slate-500 mt-1">Find this in your Shopify Admin URL when viewing the Blog.</p>
+          </div>
+
+          {result && (
+            <div className={`text-sm p-2 rounded ${result.type === 'success' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
+              {result.message}
+            </div>
+          )}
+
+          <button
+            onClick={onPublish}
+            disabled={publishing}
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2"
+          >
+            {publishing ? <Loader2 className="animate-spin" /> : <UploadCloud size={18} />}
+            Publish Now
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
+
 
 export default ArticleGenerator;

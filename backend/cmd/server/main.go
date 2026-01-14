@@ -8,9 +8,11 @@ import (
 	"os"
 	"saas-backend/internal/auth"
 	"saas-backend/internal/database"
+	"saas-backend/internal/integrations/shopify"
 	"saas-backend/internal/payment"
 	"saas-backend/internal/proxy"
 	"saas-backend/internal/ratelimit"
+	"saas-backend/internal/scraper"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -127,6 +129,49 @@ func main() {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(fmt.Sprintf(`{"credits": %d, "message": "Redemption successful"}`, newBalance)))
+		})
+
+		// Scrape Images Tool
+		r.Post("/api/tools/scrape-images", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				URL string `json:"url"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "Invalid body", http.StatusBadRequest)
+				return
+			}
+
+			images, err := scraper.ScrapeImages(req.URL)
+			if err != nil {
+				http.Error(w, "Scraping failed: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"images": images})
+		})
+
+		// Shopify Publish
+		r.Post("/api/integrations/shopify/publish", func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				StoreURL    string           `json:"storeUrl"`
+				AccessToken string           `json:"accessToken"`
+				BlogID      string           `json:"blogId"`
+				Article     shopify.BlogPost `json:"article"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "Invalid body", http.StatusBadRequest)
+				return
+			}
+
+			msg, err := shopify.PublishPost(req.StoreURL, req.AccessToken, req.BlogID, req.Article)
+			if err != nil {
+				http.Error(w, "Publishing failed: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"message": msg})
 		})
 
 		// Stripe Checkout

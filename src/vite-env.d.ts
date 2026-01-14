@@ -1,8 +1,13 @@
-/// <reference types="vite/client" />
+interface Window {
+    aistudio?: {
+        openSelectKey: () => Promise<void>;
+        hasSelectedApiKey: () => Promise<boolean>;
+    };
+}
 
 interface ImportMetaEnv {
     readonly VITE_API_KEY: string
-    // more env variables...
+    readonly VITE_BACKEND_URL: string
 }
 
 interface ImportMeta {
