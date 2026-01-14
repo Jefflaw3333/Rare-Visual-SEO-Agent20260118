@@ -22,10 +22,24 @@ type ArticleRequest struct {
 
 // PublishPost creates a new blog post on a Shopify store
 func PublishPost(storeURL, accessToken, blogID string, post BlogPost) (string, error) {
-	// Normalize Store URL (e.g., "shop.myshopify.com")
+	// Normalize Store URL
+	// Case 1: "admin.shopify.com/store/xyz" -> "xyz.myshopify.com"
+	if strings.Contains(storeURL, "admin.shopify.com/store/") {
+		parts := strings.Split(storeURL, "/store/")
+		if len(parts) > 1 {
+			storeURL = parts[1]
+		}
+	}
+
+	// Case 2: Clean up protocol and slashes
 	storeURL = strings.TrimPrefix(storeURL, "https://")
 	storeURL = strings.TrimPrefix(storeURL, "http://")
 	storeURL = strings.TrimSuffix(storeURL, "/")
+
+	// Case 3: If it doesn't contain a dot, assume it's the store name (e.g. "zitalsx")
+	if !strings.Contains(storeURL, ".") {
+		storeURL = storeURL + ".myshopify.com"
+	}
 
 	// API Endpoint: https://{store_name}/admin/api/2023-10/blogs/{blog_id}/articles.json
 	// If blogID is not provided, we need to find one or default to the first one available?

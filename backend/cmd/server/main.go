@@ -160,13 +160,17 @@ func main() {
 				Article     shopify.BlogPost `json:"article"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "Invalid body", http.StatusBadRequest)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`{"error": "Invalid request body"}`))
 				return
 			}
 
 			msg, err := shopify.PublishPost(req.StoreURL, req.AccessToken, req.BlogID, req.Article)
 			if err != nil {
-				http.Error(w, "Publishing failed: "+err.Error(), http.StatusInternalServerError)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(fmt.Sprintf(`{"error": "Publishing failed: %s"}`, err.Error())))
 				return
 			}
 
