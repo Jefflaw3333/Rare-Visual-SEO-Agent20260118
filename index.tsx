@@ -1,14 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './index.css';
-import { ClerkProvider } from '@clerk/clerk-react';
-
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key")
-}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -18,13 +10,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ClerkProvider
-      publishableKey={PUBLISHABLE_KEY}
-      afterSignOutUrl="/Rare-Visual-SEO-Agent20260118/"
-      signInFallbackRedirectUrl="/Rare-Visual-SEO-Agent20260118/"
-      signUpFallbackRedirectUrl="/Rare-Visual-SEO-Agent20260118/"
-    >
-      <App />
-    </ClerkProvider>
+    <App />
   </React.StrictMode>
 );

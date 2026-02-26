@@ -1,77 +1,12 @@
 import { GoogleGenAI, Type, Schema, FunctionDeclaration } from "@google/genai";
 import { GeneratedArticle, ArticleConfig } from "../types";
 
-const getAiClient = () => {
-  const apiKey = import.meta.env.VITE_API_KEY || localStorage.getItem('gemini_api_key');
-  if (!apiKey) {
-    console.warn("Missing API Key: Set VITE_API_KEY in .env or 'gemini_api_key' in localStorage");
-  }
-  return new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY' });
-};
+const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- Article Generation (Gemini 3 Pro) ---
-export const generateSEOArticle = async (config: ArticleConfig, token?: string | null): Promise<GeneratedArticle> => {
-  const schema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-      seo_metadata: {
-        type: Type.OBJECT,
-        properties: {
-          meta_title: { type: Type.STRING },
-          meta_description: { type: Type.STRING },
-          url_slug_suggestion: { type: Type.STRING },
-          primary_keyword_focus: { type: Type.STRING },
-        },
-        required: ["meta_title", "meta_description", "url_slug_suggestion", "primary_keyword_focus"]
-      },
-      article_content: {
-        type: Type.OBJECT,
-        properties: {
-          h1_title: { type: Type.STRING },
-          snippet_bait: { type: Type.STRING, description: "Markdown bullet points of key takeaways (Snippet Bait)" },
-          body_markdown: { type: Type.STRING, description: "Full article body in Markdown with H2, H3, and bolded keywords. High burstiness." },
-          faq_section: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                question: { type: Type.STRING },
-                answer: { type: Type.STRING },
-              },
-              required: ["question", "answer"]
-            }
-          }
-        },
-        required: ["h1_title", "snippet_bait", "body_markdown", "faq_section"]
-      },
-      media_suggestions: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            placement: { type: Type.STRING },
-            image_prompt: { type: Type.STRING },
-            alt_text: { type: Type.STRING },
-          },
-          required: ["placement", "image_prompt", "alt_text"]
-        }
-      },
-      internal_linking_suggestions: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            anchor_text: { type: Type.STRING },
-            target_page_context: { type: Type.STRING, description: "e.g., 'Collection Page' or 'Blog Post about Leather'" },
-            reason: { type: Type.STRING },
-          },
-          required: ["anchor_text", "target_page_context", "reason"]
-        }
-      }
-    },
-    required: ["seo_metadata", "article_content", "media_suggestions", "internal_linking_suggestions"]
-  };
-
+export const generateSEOArticle = async (config: ArticleConfig): Promise<GeneratedArticle> => {
+  const ai = getAiClient();
+  
   // Logic to determine structure based on Intent
   let intentInstruction = "";
   switch (config.searchIntent) {
@@ -137,62 +72,69 @@ export const generateSEOArticle = async (config: ArticleConfig, token?: string |
     5. Suggest Visuals & Links.
   `;
 
-  // SaaS Mode: Use Backend Proxy
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  if (backendUrl) {
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${backendUrl}/api/generate-content?model=gemini-3-flash-preview`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          },
-          contents: [{
-            role: "user",
-            parts: [{
-              text: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`
-            }]
-          }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: schema,
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      seo_metadata: {
+        type: Type.OBJECT,
+        properties: {
+          meta_title: { type: Type.STRING },
+          meta_description: { type: Type.STRING },
+          url_slug_suggestion: { type: Type.STRING },
+          primary_keyword_focus: { type: Type.STRING },
+        },
+        required: ["meta_title", "meta_description", "url_slug_suggestion", "primary_keyword_focus"]
+      },
+      article_content: {
+        type: Type.OBJECT,
+        properties: {
+          h1_title: { type: Type.STRING },
+          snippet_bait: { type: Type.STRING, description: "Markdown bullet points of key takeaways (Snippet Bait)" },
+          body_markdown: { type: Type.STRING, description: "Full article body in Markdown with H2, H3, and bolded keywords. High burstiness." },
+          faq_section: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                question: { type: Type.STRING },
+                answer: { type: Type.STRING },
+              },
+              required: ["question", "answer"]
+            }
           }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Backend Error (${response.status}): ${errText}`);
+        },
+        required: ["h1_title", "snippet_bait", "body_markdown", "faq_section"]
+      },
+      media_suggestions: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            placement: { type: Type.STRING },
+            image_prompt: { type: Type.STRING },
+            alt_text: { type: Type.STRING },
+          },
+          required: ["placement", "image_prompt", "alt_text"]
+        }
+      },
+      internal_linking_suggestions: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            anchor_text: { type: Type.STRING },
+            target_page_context: { type: Type.STRING, description: "e.g., 'Collection Page' or 'Blog Post about Leather'" },
+            reason: { type: Type.STRING },
+          },
+          required: ["anchor_text", "target_page_context", "reason"]
+        }
       }
-
-      const data = await response.json();
-      // The backend returns the raw Gemini response structure
-      // We need to parse the candidate text just like the SDK does
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error("No response generated from backend");
-      return JSON.parse(text) as GeneratedArticle;
-    } catch (e) {
-      console.error("Backend request failed:", e);
-      throw e; // Do NOT fallback to local key, preventing confusion
-    }
-  }
-
-  const ai = getAiClient();
-
-
-
-
+    },
+    required: ["seo_metadata", "article_content", "media_suggestions", "internal_linking_suggestions"]
+  };
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3-pro-preview',
     contents: `Generate a high-performance SEO article for: '${config.mainKeyword}'. Intent: ${config.searchIntent}.`,
     config: {
       systemInstruction: systemInstruction,
@@ -225,7 +167,7 @@ export const localSeoQuery = async (query: string, lat?: number, lng?: number) =
   const config: any = {
     tools: [{ googleMaps: {} }],
   };
-
+  
   if (lat && lng) {
     config.toolConfig = {
       retrievalConfig: {
@@ -256,7 +198,7 @@ export const generateQuickIdeas = async (topic: string) => {
 };
 
 // --- Chat (Gemini 3 Pro) ---
-export const sendChatMessage = async (history: { role: string, parts: { text: string }[] }[], message: string) => {
+export const sendChatMessage = async (history: {role: string, parts: {text: string}[]}[], message: string) => {
   const ai = getAiClient();
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
@@ -273,7 +215,7 @@ export const sendChatMessage = async (history: { role: string, parts: { text: st
 export const generateImage = async (prompt: string, size: "1K" | "2K" | "4K" = "1K") => {
   // Use a fresh client to pick up the key if selected via UI
   const ai = getAiClient();
-
+  
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
     contents: {
@@ -286,7 +228,7 @@ export const generateImage = async (prompt: string, size: "1K" | "2K" | "4K" = "
       }
     }
   });
-
+  
   // Extract image
   for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) {
@@ -301,7 +243,7 @@ export const editImage = async (base64Image: string, prompt: string) => {
   const ai = getAiClient();
   // Remove data URL header if present for sending to API
   const base64Data = base64Image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
-
+  
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {

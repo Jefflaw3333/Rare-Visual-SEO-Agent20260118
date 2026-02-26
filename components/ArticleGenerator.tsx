@@ -1,22 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAuth } from "@clerk/clerk-react";
 import { ArticleConfig, GeneratedArticle, SavedTemplate } from '../types';
 import { generateSEOArticle, generateImage } from '../services/geminiService';
 import ReactMarkdown from 'react-markdown';
-import { marked } from 'marked';
-import { Loader2, Download, Copy, Image as ImageIcon, Check, Link as LinkIcon, ExternalLink, Code, FileText, Zap, BarChart3, LayoutTemplate, Plus, Save, Trash2, X, Globe, UploadCloud } from 'lucide-react';
+import { Loader2, Download, Copy, Image as ImageIcon, Check, Link as LinkIcon, ExternalLink, Code, FileText, Zap, BarChart3, LayoutTemplate, Plus, Save, Trash2, X } from 'lucide-react';
 
 // Reusable Copy Button Component
-const CopyButton = ({
-  text,
-  className = "text-slate-500 hover:text-white transition-colors",
-  size = 14,
-  title = "Copy"
-}: {
-  text: string,
-  className?: string,
-  size?: number,
-  title?: string
+const CopyButton = ({ 
+  text, 
+  className = "text-slate-500 hover:text-white transition-colors", 
+  size = 14, 
+  title = "Copy" 
+}: { 
+  text: string, 
+  className?: string, 
+  size?: number, 
+  title?: string 
 }) => (
   <button
     onClick={() => navigator.clipboard.writeText(text)}
@@ -28,7 +26,6 @@ const CopyButton = ({
 );
 
 const ArticleGenerator: React.FC = () => {
-  const { getToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedArticle | null>(null);
   const [activeTab, setActiveTab] = useState<'content' | 'meta' | 'visuals' | 'links'>('content');
@@ -53,42 +50,32 @@ const ArticleGenerator: React.FC = () => {
   const [generatingImageIndex, setGeneratingImageIndex] = useState<number | null>(null);
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
 
-  // State for Scraped Images
-  const [scrapedImages, setScrapedImages] = useState<{ url: string, alt: string }[]>([]);
-  const [scraping, setScraping] = useState(false);
-
-  // State for Shopify Publish
-  const [showShopifyModal, setShowShopifyModal] = useState(false);
-  const [shopifyConfig, setShopifyConfig] = useState({ storeUrl: '', accessToken: '', blogId: '' });
-  const [publishing, setPublishing] = useState(false);
-  const [publishResult, setPublishResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-
   // Load templates on mount
   useEffect(() => {
     const saved = localStorage.getItem('seo_templates');
     if (saved) {
-      try {
-        setTemplates(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse templates", e);
-      }
+        try {
+            setTemplates(JSON.parse(saved));
+        } catch (e) {
+            console.error("Failed to parse templates", e);
+        }
     }
   }, []);
 
   const handleSaveTemplate = () => {
     if (!newTemplateName.trim()) return;
     const newTemplate: SavedTemplate = {
-      id: Date.now().toString(),
-      name: newTemplateName,
-      config: {
-        targetUrl: config.targetUrl,
-        brandName: config.brandName,
-        searchIntent: config.searchIntent,
-        toneOfVoice: config.toneOfVoice,
-        includeImages: config.includeImages,
-        wordCount: config.wordCount,
-        readabilityLevel: config.readabilityLevel
-      }
+        id: Date.now().toString(),
+        name: newTemplateName,
+        config: {
+            targetUrl: config.targetUrl,
+            brandName: config.brandName,
+            searchIntent: config.searchIntent,
+            toneOfVoice: config.toneOfVoice,
+            includeImages: config.includeImages,
+            wordCount: config.wordCount,
+            readabilityLevel: config.readabilityLevel
+        }
     };
     const updated = [...templates, newTemplate];
     setTemplates(updated);
@@ -100,10 +87,10 @@ const ArticleGenerator: React.FC = () => {
   const handleLoadTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId);
     if (template) {
-      setConfig(prev => ({
-        ...prev,
-        ...template.config
-      }));
+        setConfig(prev => ({
+            ...prev,
+            ...template.config
+        }));
     }
   };
 
@@ -119,12 +106,11 @@ const ArticleGenerator: React.FC = () => {
     setLoading(true);
     setGeneratedData(null);
     try {
-      const token = await getToken();
-      const result = await generateSEOArticle(config, token);
+      const result = await generateSEOArticle(config);
       setGeneratedData(result);
     } catch (error) {
       console.error(error);
-      alert(`Failed to generate article: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert("Failed to generate article. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -133,14 +119,14 @@ const ArticleGenerator: React.FC = () => {
   const handleGenerateVisual = async (index: number, prompt: string) => {
     setGeneratingImageIndex(index);
     try {
-      // Check for key first as per requirement for Pro Image model
-      if (window.aistudio && window.aistudio.openSelectKey) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-          await window.aistudio.openSelectKey();
+        // Check for key first as per requirement for Pro Image model
+        if (window.aistudio && window.aistudio.openSelectKey) {
+             const hasKey = await window.aistudio.hasSelectedApiKey();
+             if (!hasKey) {
+                 await window.aistudio.openSelectKey();
+             }
         }
-      }
-
+        
       const img = await generateImage(prompt, "1K");
       if (img) {
         setGeneratedImages(prev => ({ ...prev, [index]: img }));
@@ -152,97 +138,34 @@ const ArticleGenerator: React.FC = () => {
     }
   };
 
-  const handleScrapeImages = async () => {
-    if (!config.targetUrl) return;
-    setScraping(true);
-    try {
-      const token = await getToken();
-      const backendUrl = import.meta.env.VITE_BACKEND_URL;
-      if (!backendUrl) return;
-
-      const res = await fetch(`${backendUrl}/api/tools/scrape-images`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ url: config.targetUrl })
-      });
-      const data = await res.json();
-      if (data.images) {
-        setScrapedImages(data.images);
-      }
-    } catch (e) {
-      console.error("Scraping failed", e);
-    } finally {
-      setScraping(false);
-    }
-  };
-
-  const handlePublishShopify = async () => {
-    if (!shopifyConfig.storeUrl || !shopifyConfig.accessToken || !shopifyConfig.blogId || !generatedData) return;
-    setPublishing(true);
-    setPublishResult(null);
-    try {
-      const token = await getToken();
-      const backendUrl = import.meta.env.VITE_BACKEND_URL;
-      if (!backendUrl) return;
-
-      const articlePayload = {
-        title: generatedData.seo_metadata.meta_title,
-        body_html: marked.parse(generatedData.article_content.body_markdown),
-        tags: generatedData.seo_metadata.primary_keyword_focus,
-        author: "RareVisual Agent"
-      };
-
-      const res = await fetch(`${backendUrl}/api/integrations/shopify/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          storeUrl: shopifyConfig.storeUrl,
-          accessToken: shopifyConfig.accessToken,
-          blogId: shopifyConfig.blogId,
-          article: articlePayload
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.message || "Failed");
-
-      setPublishResult({ type: 'success', message: "Published successfully!" });
-      setTimeout(() => setShowShopifyModal(false), 2000);
-    } catch (e: any) {
-      setPublishResult({ type: 'error', message: e.message });
-    } finally {
-      setPublishing(false);
-    }
-  };
-
   // Calculate Keyword Density and Stats
   const keywordStats = useMemo(() => {
     if (!generatedData || !config.mainKeyword) return null;
-
+    
     const text = generatedData.article_content.body_markdown;
     const keyword = config.mainKeyword;
-
+    
     const normalizedText = text.toLowerCase();
     const normalizedKeyword = keyword.toLowerCase().trim();
     if (!normalizedKeyword) return null;
-
+    
     // Simple word count (match words)
     const words = normalizedText.match(/\b[\w']+\b/g) || [];
     const totalWords = words.length;
-
+    
     if (totalWords === 0) return { count: 0, density: "0.00", totalWords: 0 };
 
     // Escape regex characters in keyword
     const escapedKeyword = normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // Regex for whole word/phrase match
     const keywordRegex = new RegExp(`\\b${escapedKeyword}\\b`, 'g');
-
+    
     const matches = normalizedText.match(keywordRegex);
     const count = matches ? matches.length : 0;
-
+    
     // Density: (Count / Total Words) * 100
     const density = ((count / totalWords) * 100).toFixed(2);
-
+    
     return { count, density, totalWords };
   }, [generatedData, config.mainKeyword]);
 
@@ -284,65 +207,65 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Input */}
         <div className="w-1/3 min-w-[350px] p-6 overflow-y-auto border-r border-slate-800 bg-slate-900/30">
-
+          
           {/* Templates Section */}
           <div className="mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-800">
             <div className="flex items-center justify-between mb-3">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <LayoutTemplate size={14} /> Templates
-              </label>
-              {!isSavingTemplate && (
-                <button
-                  onClick={() => setIsSavingTemplate(true)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
-                >
-                  <Plus size={14} /> Save Current
-                </button>
-              )}
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <LayoutTemplate size={14} /> Templates
+                </label>
+                {!isSavingTemplate && (
+                    <button 
+                        onClick={() => setIsSavingTemplate(true)}
+                        className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                    >
+                        <Plus size={14} /> Save Current
+                    </button>
+                )}
             </div>
 
             {isSavingTemplate ? (
-              <div className="flex gap-2">
-                <input
-                  autoFocus
-                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none"
-                  placeholder="Template Name..."
-                  value={newTemplateName}
-                  onChange={e => setNewTemplateName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
-                />
-                <button onClick={handleSaveTemplate} className="p-1.5 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500">
-                  <Save size={14} />
-                </button>
-                <button onClick={() => setIsSavingTemplate(false)} className="p-1.5 bg-slate-700 rounded-lg text-slate-400 hover:text-white">
-                  <X size={14} />
-                </button>
-              </div>
+                <div className="flex gap-2">
+                    <input 
+                        autoFocus
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-sm text-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                        placeholder="Template Name..."
+                        value={newTemplateName}
+                        onChange={e => setNewTemplateName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
+                    />
+                    <button onClick={handleSaveTemplate} className="p-1.5 bg-indigo-600 rounded-lg text-white hover:bg-indigo-500">
+                        <Save size={14} />
+                    </button>
+                    <button onClick={() => setIsSavingTemplate(false)} className="p-1.5 bg-slate-700 rounded-lg text-slate-400 hover:text-white">
+                        <X size={14} />
+                    </button>
+                </div>
             ) : (
-              <>
-                {templates.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No saved templates yet.</p>
-                ) : (
-                  <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
-                    {templates.map(t => (
-                      <div
-                        key={t.id}
-                        className="group flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900/50 hover:bg-slate-700/50 transition-colors cursor-pointer border border-transparent hover:border-slate-600"
-                        onClick={() => handleLoadTemplate(t.id)}
-                      >
-                        <span className="text-sm text-slate-300 truncate font-medium">{t.name}</span>
-                        <button
-                          onClick={(e) => handleDeleteTemplate(e, t.id)}
-                          className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                          title="Delete Template"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
+                <>
+                    {templates.length === 0 ? (
+                        <p className="text-xs text-slate-500 italic">No saved templates yet.</p>
+                    ) : (
+                        <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                            {templates.map(t => (
+                                <div 
+                                    key={t.id} 
+                                    className="group flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900/50 hover:bg-slate-700/50 transition-colors cursor-pointer border border-transparent hover:border-slate-600" 
+                                    onClick={() => handleLoadTemplate(t.id)}
+                                >
+                                    <span className="text-sm text-slate-300 truncate font-medium">{t.name}</span>
+                                    <button 
+                                        onClick={(e) => handleDeleteTemplate(e, t.id)}
+                                        className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                        title="Delete Template"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
           </div>
 
@@ -368,7 +291,7 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
                 onChange={(e) => setConfig({ ...config, articleTitle: e.target.value })}
               />
             </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Brand Name</label>
               <input
@@ -381,50 +304,40 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Target URLs (Context)</label>
-              <textarea
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600 h-24 resize-none"
-                placeholder="https://yourbrand.com/collection&#10;https://competitor.com/example"
-                value={config.targetUrl}
-                onChange={(e) => setConfig({ ...config, targetUrl: e.target.value })}
-              />
-              <p className="text-xs text-slate-500 mt-1">Add multiple URLs (one per line) for context.</p>
-              {config.targetUrl && (
-                <button
-                  onClick={handleScrapeImages}
-                  disabled={scraping}
-                  className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                >
-                  {scraping ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                  Fetch Images from URL
-                </button>
-              )}
+               <label className="block text-sm font-medium text-slate-300 mb-1">Target URLs (Context)</label>
+               <textarea
+                   className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder-slate-600 h-24 resize-none"
+                   placeholder="https://yourbrand.com/collection&#10;https://competitor.com/example"
+                   value={config.targetUrl}
+                   onChange={(e) => setConfig({ ...config, targetUrl: e.target.value })}
+               />
+               <p className="text-xs text-slate-500 mt-1">Add multiple URLs (one per line) for context.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Word Count</label>
-                <input
-                  type="number"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="1500"
-                  value={config.wordCount}
-                  onChange={(e) => setConfig({ ...config, wordCount: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Search Intent</label>
-                <select
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                  value={config.searchIntent}
-                  onChange={(e) => setConfig({ ...config, searchIntent: e.target.value as any })}
-                >
-                  <option value="Informational">Informational</option>
-                  <option value="Commercial">Commercial</option>
-                  <option value="Transactional">Transactional</option>
-                  <option value="Navigational">Navigational</option>
-                </select>
-              </div>
+               <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Word Count</label>
+                  <input
+                    type="number"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="1500"
+                    value={config.wordCount}
+                    onChange={(e) => setConfig({ ...config, wordCount: parseInt(e.target.value) || 0 })}
+                  />
+               </div>
+               <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Search Intent</label>
+                  <select
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={config.searchIntent}
+                    onChange={(e) => setConfig({ ...config, searchIntent: e.target.value as any })}
+                  >
+                    <option value="Informational">Informational</option>
+                    <option value="Commercial">Commercial</option>
+                    <option value="Transactional">Transactional</option>
+                    <option value="Navigational">Navigational</option>
+                  </select>
+               </div>
             </div>
 
             <div>
@@ -462,10 +375,11 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
             <button
               onClick={handleGenerate}
               disabled={loading || !config.mainKeyword}
-              className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${loading || !config.mainKeyword
-                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg hover:shadow-indigo-500/25'
-                }`}
+              className={`w-full py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all ${
+                loading || !config.mainKeyword
+                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg hover:shadow-indigo-500/25'
+              }`}
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
               {loading ? 'Designing Content...' : 'Generate Article'}
@@ -499,35 +413,39 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
                 <div className="flex">
                   <button
                     onClick={() => setActiveTab('content')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'content' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
-                      }`}
+                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                      activeTab === 'content' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
                   >
                     Content Preview
                   </button>
                   <button
                     onClick={() => setActiveTab('meta')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'meta' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
-                      }`}
+                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                      activeTab === 'meta' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
                   >
                     SEO Metadata
                   </button>
                   <button
                     onClick={() => setActiveTab('visuals')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'visuals' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
-                      }`}
+                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                      activeTab === 'visuals' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
                   >
                     Visuals & Media
                   </button>
                   <button
                     onClick={() => setActiveTab('links')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'links' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
-                      }`}
+                    className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                      activeTab === 'links' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-white'
+                    }`}
                   >
                     Link Strategy
                   </button>
                 </div>
                 {activeTab === 'content' && (
-                  <button
+                  <button 
                     onClick={copyToClipboard}
                     className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-md transition-colors shadow-lg"
                   >
@@ -535,233 +453,203 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
                     Copy Article
                   </button>
                 )}
-                {/* Shopify Publish Button */}
-                <button
-                  onClick={() => setShowShopifyModal(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 ml-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-md transition-colors shadow-lg"
-                >
-                  <UploadCloud size={14} />
-                  Publish
-                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                 {activeTab === 'content' && (
                   <div className="max-w-3xl mx-auto space-y-8">
-                    {/* Meta Data Highlight Section for Writers */}
-                    <div className="bg-slate-900 border-l-4 border-indigo-500 p-6 rounded-r-lg mb-8">
-                      <div className="grid gap-4">
-                        <div>
-                          <span className="text-xs uppercase tracking-wider text-slate-500 font-bold block mb-1">Meta Title</span>
-                          <div className="flex justify-between items-start gap-2">
-                            <p className="text-white font-medium">{generatedData.seo_metadata.meta_title}</p>
-                            <CopyButton text={generatedData.seo_metadata.meta_title} />
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-xs uppercase tracking-wider text-slate-500 font-bold block mb-1">Meta Description</span>
-                          <div className="flex justify-between items-start gap-2">
-                            <p className="text-slate-300 text-sm leading-relaxed">{generatedData.seo_metadata.meta_description}</p>
-                            <CopyButton text={generatedData.seo_metadata.meta_description} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="prose prose-invert prose-indigo max-w-none">
-                      <h1 className="text-4xl font-extrabold text-white mb-6 tracking-tight">{generatedData.article_content.h1_title}</h1>
-
-                      {keywordStats && (
-                        <div className="flex items-center gap-4 text-xs font-medium text-slate-400 bg-slate-900/50 p-2 rounded-lg border border-slate-800/50 mb-6 w-fit">
-                          <div className="flex items-center gap-1.5">
-                            <BarChart3 size={14} className="text-indigo-400" />
-                            <span>Word Count: <span className="text-slate-200">{keywordStats.totalWords}</span></span>
-                          </div>
-                          <div className="w-px h-3 bg-slate-700"></div>
-                          <div>
-                            Keyword: <span className="text-indigo-300">"{config.mainKeyword}"</span>
-                          </div>
-                          <div className="w-px h-3 bg-slate-700"></div>
-                          <div>
-                            Uses: <span className="text-slate-200">{keywordStats.count}</span>
-                          </div>
-                          <div className="w-px h-3 bg-slate-700"></div>
-                          <div>
-                            Density: <span className={`${parseFloat(keywordStats.density) > 2.5 ? 'text-yellow-400' : 'text-emerald-400'}`}>{keywordStats.density}%</span>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="bg-indigo-900/10 border border-indigo-500/20 rounded-xl p-6 mb-8">
-                        <h3 className="text-indigo-300 font-bold mb-3 uppercase text-xs tracking-wider flex items-center gap-2">
-                          <Zap size={14} />
-                          Key Takeaways
-                        </h3>
-                        <div className="text-slate-200">
-                          <ReactMarkdown>{generatedData.article_content.snippet_bait}</ReactMarkdown>
-                        </div>
-                      </div>
-
-                      <div className="markdown-body text-slate-300 leading-relaxed space-y-6">
-                        <ReactMarkdown components={{
-                          h1: ({ node, ...props }) => <h1 className="text-3xl font-bold text-white mt-8 mb-4" {...props} />,
-                          h2: ({ node, ...props }) => <h2 className="text-2xl font-bold text-white mt-8 mb-4 border-b border-slate-800 pb-2" {...props} />,
-                          h3: ({ node, ...props }) => <h3 className="text-xl font-semibold text-indigo-100 mt-6 mb-3" {...props} />,
-                          strong: ({ node, ...props }) => <strong className="font-bold text-white bg-indigo-900/30 px-1 rounded" {...props} />
-                        }}>
-                          {generatedData.article_content.body_markdown}
-                        </ReactMarkdown>
-                      </div>
-
-                      {generatedData.internal_linking_suggestions && generatedData.internal_linking_suggestions.length > 0 && (
-                        <div className="my-10 bg-slate-900 border border-slate-800 rounded-xl p-6">
-                          <h3 className="text-slate-200 font-semibold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
-                            <LinkIcon size={16} />
-                            Internal Link Opportunities
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {generatedData.internal_linking_suggestions.map((link, idx) => (
-                              <div key={idx} className="flex flex-col p-3 rounded-lg bg-slate-950 border border-slate-800">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-indigo-400 font-medium text-sm">"{link.anchor_text}"</span>
-                                  <div className="flex gap-2">
-                                    <CopyButton
-                                      text={link.anchor_text}
-                                      size={12}
-                                      title="Copy Anchor"
-                                    />
-                                  </div>
-                                </div>
-                                <span className="text-xs text-slate-500">Link to: {link.target_page_context}</span>
+                     {/* Meta Data Highlight Section for Writers */}
+                     <div className="bg-slate-900 border-l-4 border-indigo-500 p-6 rounded-r-lg mb-8">
+                        <div className="grid gap-4">
+                           <div>
+                              <span className="text-xs uppercase tracking-wider text-slate-500 font-bold block mb-1">Meta Title</span>
+                              <div className="flex justify-between items-start gap-2">
+                                <p className="text-white font-medium">{generatedData.seo_metadata.meta_title}</p>
+                                <CopyButton text={generatedData.seo_metadata.meta_title} />
                               </div>
-                            ))}
-                          </div>
+                           </div>
+                           <div>
+                              <span className="text-xs uppercase tracking-wider text-slate-500 font-bold block mb-1">Meta Description</span>
+                              <div className="flex justify-between items-start gap-2">
+                                <p className="text-slate-300 text-sm leading-relaxed">{generatedData.seo_metadata.meta_description}</p>
+                                <CopyButton text={generatedData.seo_metadata.meta_description} />
+                              </div>
+                           </div>
                         </div>
-                      )}
+                     </div>
 
-                      <div className="mt-12 pt-8 border-t border-slate-800">
-                        <h2 className="text-2xl font-bold text-white mb-6">Frequently Asked Questions</h2>
-                        <div className="space-y-6">
-                          {generatedData.article_content.faq_section.map((faq, i) => (
-                            <div key={i} className="bg-slate-900/50 rounded-lg p-5 border border-slate-800/50">
-                              <h3 className="font-semibold text-white mb-3 text-lg flex items-start gap-2">
-                                <span className="text-indigo-500 mt-1">Q.</span>
-                                {faq.question}
-                              </h3>
-                              <p className="text-slate-400 pl-6 leading-relaxed">{faq.answer}</p>
+                     <div className="prose prose-invert prose-indigo max-w-none">
+                        <h1 className="text-4xl font-extrabold text-white mb-6 tracking-tight">{generatedData.article_content.h1_title}</h1>
+                        
+                        {keywordStats && (
+                            <div className="flex items-center gap-4 text-xs font-medium text-slate-400 bg-slate-900/50 p-2 rounded-lg border border-slate-800/50 mb-6 w-fit">
+                                <div className="flex items-center gap-1.5">
+                                   <BarChart3 size={14} className="text-indigo-400"/>
+                                   <span>Word Count: <span className="text-slate-200">{keywordStats.totalWords}</span></span>
+                                </div>
+                                <div className="w-px h-3 bg-slate-700"></div>
+                                <div>
+                                   Keyword: <span className="text-indigo-300">"{config.mainKeyword}"</span>
+                                </div>
+                                <div className="w-px h-3 bg-slate-700"></div>
+                                <div>
+                                   Uses: <span className="text-slate-200">{keywordStats.count}</span>
+                                </div>
+                                <div className="w-px h-3 bg-slate-700"></div>
+                                <div>
+                                   Density: <span className={`${parseFloat(keywordStats.density) > 2.5 ? 'text-yellow-400' : 'text-emerald-400'}`}>{keywordStats.density}%</span>
+                                </div>
                             </div>
-                          ))}
+                        )}
+
+                        <div className="bg-indigo-900/10 border border-indigo-500/20 rounded-xl p-6 mb-8">
+                            <h3 className="text-indigo-300 font-bold mb-3 uppercase text-xs tracking-wider flex items-center gap-2">
+                              <Zap size={14} />
+                              Key Takeaways
+                            </h3>
+                            <div className="text-slate-200">
+                                <ReactMarkdown>{generatedData.article_content.snippet_bait}</ReactMarkdown>
+                            </div>
                         </div>
-                      </div>
-                    </div>
+
+                        <div className="markdown-body text-slate-300 leading-relaxed space-y-6">
+                            <ReactMarkdown components={{
+                                h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-white mt-8 mb-4" {...props} />,
+                                h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-white mt-8 mb-4 border-b border-slate-800 pb-2" {...props} />,
+                                h3: ({node, ...props}) => <h3 className="text-xl font-semibold text-indigo-100 mt-6 mb-3" {...props} />,
+                                strong: ({node, ...props}) => <strong className="font-bold text-white bg-indigo-900/30 px-1 rounded" {...props} />
+                            }}>
+                                {generatedData.article_content.body_markdown}
+                            </ReactMarkdown>
+                        </div>
+
+                        {generatedData.internal_linking_suggestions && generatedData.internal_linking_suggestions.length > 0 && (
+                            <div className="my-10 bg-slate-900 border border-slate-800 rounded-xl p-6">
+                                <h3 className="text-slate-200 font-semibold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
+                                    <LinkIcon size={16} />
+                                    Internal Link Opportunities
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {generatedData.internal_linking_suggestions.map((link, idx) => (
+                                        <div key={idx} className="flex flex-col p-3 rounded-lg bg-slate-950 border border-slate-800">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-indigo-400 font-medium text-sm">"{link.anchor_text}"</span>
+                                                <div className="flex gap-2">
+                                                    <CopyButton 
+                                                      text={link.anchor_text} 
+                                                      size={12} 
+                                                      title="Copy Anchor" 
+                                                    />
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-slate-500">Link to: {link.target_page_context}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mt-12 pt-8 border-t border-slate-800">
+                             <h2 className="text-2xl font-bold text-white mb-6">Frequently Asked Questions</h2>
+                             <div className="space-y-6">
+                                 {generatedData.article_content.faq_section.map((faq, i) => (
+                                     <div key={i} className="bg-slate-900/50 rounded-lg p-5 border border-slate-800/50">
+                                         <h3 className="font-semibold text-white mb-3 text-lg flex items-start gap-2">
+                                            <span className="text-indigo-500 mt-1">Q.</span>
+                                            {faq.question}
+                                         </h3>
+                                         <p className="text-slate-400 pl-6 leading-relaxed">{faq.answer}</p>
+                                     </div>
+                                 ))}
+                             </div>
+                        </div>
+                     </div>
                   </div>
                 )}
 
                 {activeTab === 'meta' && (
                   <div className="max-w-2xl mx-auto">
                     <div className="bg-white rounded-lg p-6 shadow-sm mb-6 font-sans">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="w-7 h-7 bg-gray-200 rounded-full"></div>
-                        <div className="flex flex-col">
-                          <span className="text-sm text-gray-800 font-medium">RareVisual</span>
-                          <span className="text-xs text-gray-500">{config.targetUrl || 'https://example.com'} › {generatedData.seo_metadata.url_slug_suggestion}</span>
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-7 h-7 bg-gray-200 rounded-full"></div>
+                            <div className="flex flex-col">
+                                <span className="text-sm text-gray-800 font-medium">RareVisual</span>
+                                <span className="text-xs text-gray-500">{config.targetUrl || 'https://example.com'} › {generatedData.seo_metadata.url_slug_suggestion}</span>
+                            </div>
                         </div>
-                      </div>
-                      <div className="group/title flex items-start justify-between gap-4">
-                        <h3 className="text-xl text-[#1a0dab] hover:underline cursor-pointer font-medium mb-1 truncate flex-1">
-                          {generatedData.seo_metadata.meta_title}
-                        </h3>
-                        <CopyButton
-                          text={generatedData.seo_metadata.meta_title}
-                          className="text-gray-400 hover:text-gray-600 p-1 opacity-0 group-hover/title:opacity-100 transition-opacity"
-                          size={16}
-                          title="Copy Title"
-                        />
-                      </div>
-                      <div className="group/desc flex items-start justify-between gap-4">
-                        <p className="text-sm text-gray-600 leading-normal flex-1">
-                          {generatedData.seo_metadata.meta_description}
-                        </p>
-                        <CopyButton
-                          text={generatedData.seo_metadata.meta_description}
-                          className="text-gray-400 hover:text-gray-600 p-1 opacity-0 group-hover/desc:opacity-100 transition-opacity"
-                          size={16}
-                          title="Copy Description"
-                        />
-                      </div>
+                        <div className="group/title flex items-start justify-between gap-4">
+                            <h3 className="text-xl text-[#1a0dab] hover:underline cursor-pointer font-medium mb-1 truncate flex-1">
+                                {generatedData.seo_metadata.meta_title}
+                            </h3>
+                            <CopyButton 
+                                text={generatedData.seo_metadata.meta_title}
+                                className="text-gray-400 hover:text-gray-600 p-1 opacity-0 group-hover/title:opacity-100 transition-opacity"
+                                size={16}
+                                title="Copy Title"
+                            />
+                        </div>
+                        <div className="group/desc flex items-start justify-between gap-4">
+                            <p className="text-sm text-gray-600 leading-normal flex-1">
+                                {generatedData.seo_metadata.meta_description}
+                            </p>
+                            <CopyButton 
+                                text={generatedData.seo_metadata.meta_description}
+                                className="text-gray-400 hover:text-gray-600 p-1 opacity-0 group-hover/desc:opacity-100 transition-opacity"
+                                size={16}
+                                title="Copy Description"
+                            />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
-                        <span className="text-slate-500 text-xs uppercase tracking-wider">Target Keyword</span>
-                        <div className="text-white font-mono mt-1">{generatedData.seo_metadata.primary_keyword_focus}</div>
-                      </div>
-                      <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
-                        <span className="text-slate-500 text-xs uppercase tracking-wider">URL Slug</span>
-                        <div className="text-white font-mono mt-1">{generatedData.seo_metadata.url_slug_suggestion}</div>
-                      </div>
+                        <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                            <span className="text-slate-500 text-xs uppercase tracking-wider">Target Keyword</span>
+                            <div className="text-white font-mono mt-1">{generatedData.seo_metadata.primary_keyword_focus}</div>
+                        </div>
+                        <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                            <span className="text-slate-500 text-xs uppercase tracking-wider">URL Slug</span>
+                            <div className="text-white font-mono mt-1">{generatedData.seo_metadata.url_slug_suggestion}</div>
+                        </div>
                     </div>
                   </div>
                 )}
 
                 {activeTab === 'visuals' && (
                   <div className="max-w-3xl mx-auto space-y-6">
-                    <p className="text-slate-400 mb-4">Gemini suggests the following placements for visual content. Click "Generate" to create exclusive assets.</p>
-                    {generatedData.media_suggestions.map((media, idx) => (
-                      <div key={idx} className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex flex-col md:flex-row">
-                        <div className="p-6 flex-1">
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="bg-indigo-900 text-indigo-200 text-xs px-2 py-1 rounded uppercase font-semibold">
-                              {media.placement}
-                            </span>
+                      <p className="text-slate-400 mb-4">Gemini suggests the following placements for visual content. Click "Generate" to create exclusive assets.</p>
+                      {generatedData.media_suggestions.map((media, idx) => (
+                          <div key={idx} className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex flex-col md:flex-row">
+                              <div className="p-6 flex-1">
+                                  <div className="flex items-center gap-2 mb-3">
+                                      <span className="bg-indigo-900 text-indigo-200 text-xs px-2 py-1 rounded uppercase font-semibold">
+                                          {media.placement}
+                                      </span>
+                                  </div>
+                                  <p className="text-white font-medium mb-2">Prompt Suggestion:</p>
+                                  <p className="text-slate-400 text-sm italic mb-4">"{media.image_prompt}"</p>
+                                  <p className="text-slate-500 text-xs mb-4"><span className="font-semibold text-slate-400">Alt Text:</span> {media.alt_text}</p>
+                                  
+                                  <button 
+                                    onClick={() => handleGenerateVisual(idx, media.image_prompt)}
+                                    disabled={generatingImageIndex === idx || !!generatedImages[idx]}
+                                    className="px-4 py-2 bg-slate-800 hover:bg-indigo-600 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
+                                  >
+                                      {generatingImageIndex === idx ? <Loader2 className="animate-spin" size={16}/> : <ImageIcon size={16}/>}
+                                      {generatedImages[idx] ? 'Generated' : 'Generate with Gemini Pro Image'}
+                                  </button>
+                              </div>
+                              <div className="w-full md:w-64 bg-black flex items-center justify-center relative min-h-[200px]">
+                                  {generatedImages[idx] ? (
+                                      <img src={generatedImages[idx]} alt="Generated" className="w-full h-full object-cover" />
+                                  ) : (
+                                      <div className="text-slate-700 flex flex-col items-center">
+                                          <ImageIcon size={32} className="mb-2 opacity-50"/>
+                                          <span className="text-xs">Preview Area</span>
+                                      </div>
+                                  )}
+                              </div>
                           </div>
-                          <p className="text-white font-medium mb-2">Prompt Suggestion:</p>
-                          <p className="text-slate-400 text-sm italic mb-4">"{media.image_prompt}"</p>
-                          <p className="text-slate-500 text-xs mb-4"><span className="font-semibold text-slate-400">Alt Text:</span> {media.alt_text}</p>
-
-                          <button
-                            onClick={() => handleGenerateVisual(idx, media.image_prompt)}
-                            disabled={generatingImageIndex === idx || !!generatedImages[idx]}
-                            className="px-4 py-2 bg-slate-800 hover:bg-indigo-600 text-white rounded-lg text-sm transition-colors flex items-center gap-2"
-                          >
-                            {generatingImageIndex === idx ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />}
-                            {generatedImages[idx] ? 'Generated' : 'Generate with Gemini Pro Image'}
-                          </button>
-                        </div>
-                        <div className="w-full md:w-64 bg-black flex items-center justify-center relative min-h-[200px]">
-                          {generatedImages[idx] ? (
-                            <img src={generatedImages[idx]} alt="Generated" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="text-slate-700 flex flex-col items-center">
-                              <ImageIcon size={32} className="mb-2 opacity-50" />
-                              <span className="text-xs">Preview Area</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-
-
-                    {/* Scraped Images Section */}
-                    {scrapedImages.length > 0 && (
-                      <div className="max-w-3xl mx-auto space-y-6 mt-8 pt-8 border-t border-slate-800">
-                        <h3 className="text-xl font-bold text-white mb-4">Scraped Images</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          {scrapedImages.map((img, idx) => (
-                            <div key={idx} className="group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-700">
-                              <img src={img.url} alt={img.alt} className="w-full h-32 object-cover" />
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                <CopyButton text={`![${img.alt || 'image'}](${img.url})`} className="p-2 bg-slate-800 rounded-full text-white hover:bg-indigo-600" size={16} title="Copy Markdown" />
-                                <a href={img.url} target="_blank" rel="noreferrer" className="p-2 bg-slate-800 rounded-full text-white hover:bg-indigo-600"><ExternalLink size={16} /></a>
-                              </div>
-                              <div className="p-2">
-                                <p className="text-xs text-slate-400 truncate">{img.alt || 'No Alt Text'}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      ))}
                   </div>
                 )}
 
@@ -777,32 +665,32 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
                         generatedData.internal_linking_suggestions.map((link, idx) => (
                           <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col md:flex-row gap-4 items-start md:items-center">
                             <div className="p-3 bg-indigo-900/30 rounded-lg shrink-0">
-                              <LinkIcon className="text-indigo-400" size={24} />
+                               <LinkIcon className="text-indigo-400" size={24} />
                             </div>
                             <div className="flex-1">
-                              <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1">
-                                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Text</span>
-                                <span className="text-white font-medium bg-slate-800 px-2 py-0.5 rounded border border-slate-700">"{link.anchor_text}"</span>
-                              </div>
-                              <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-                                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Target Context</span>
-                                <span className="text-indigo-300">{link.target_page_context}</span>
-                              </div>
-                              <p className="text-sm text-slate-400 mt-2 border-t border-slate-800 pt-2"><span className="text-slate-500 font-medium">Why?</span> {link.reason}</p>
+                                <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Anchor Text</span>
+                                    <span className="text-white font-medium bg-slate-800 px-2 py-0.5 rounded border border-slate-700">"{link.anchor_text}"</span>
+                                </div>
+                                <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Target Context</span>
+                                    <span className="text-indigo-300">{link.target_page_context}</span>
+                                </div>
+                                <p className="text-sm text-slate-400 mt-2 border-t border-slate-800 pt-2"><span className="text-slate-500 font-medium">Why?</span> {link.reason}</p>
                             </div>
                             <div className="shrink-0 flex flex-col gap-2">
-                              <CopyButton
-                                text={link.anchor_text}
-                                className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                                size={18}
-                                title="Copy Anchor Text"
-                              />
-                              <CopyButton
-                                text={`<a href="#">${link.anchor_text}</a>`}
-                                className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                                size={18}
-                                title="Copy Link HTML Stub"
-                              />
+                                <CopyButton 
+                                    text={link.anchor_text} 
+                                    className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" 
+                                    size={18} 
+                                    title="Copy Anchor Text"
+                                />
+                                <CopyButton 
+                                    text={`<a href="#">${link.anchor_text}</a>`} 
+                                    className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" 
+                                    size={18} 
+                                    title="Copy Link HTML Stub"
+                                />
                             </div>
                           </div>
                         ))
@@ -819,66 +707,8 @@ ${generatedData.article_content.faq_section.map(faq => `### ${faq.question}\n${f
           )}
         </div>
       </div>
-
-      <ShopifyModal
-        isOpen={showShopifyModal}
-        onClose={() => setShowShopifyModal(false)}
-        config={shopifyConfig}
-        setConfig={setShopifyConfig}
-        onPublish={handlePublishShopify}
-        publishing={publishing}
-        result={publishResult}
-      />
-    </div >
-  );
-};
-
-const ShopifyModal = ({ isOpen, onClose, config, setConfig, onPublish, publishing, result }: any) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-900 rounded-xl border border-slate-700 p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-white">Publish to Shopify</h3>
-          <button onClick={onClose}><X className="text-slate-400" /></button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Store URL (e.g. my-store.myshopify.com)</label>
-            <input className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white"
-              value={config.storeUrl} onChange={e => setConfig({ ...config, storeUrl: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Access Token (Admin API)</label>
-            <input className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" type="password"
-              value={config.accessToken} onChange={e => setConfig({ ...config, accessToken: e.target.value })} />
-          </div>
-          <div>
-            <label className="block text-sm text-slate-400 mb-1">Blog ID</label>
-            <input className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white" placeholder="e.g. 8372661234"
-              value={config.blogId} onChange={e => setConfig({ ...config, blogId: e.target.value })} />
-            <p className="text-xs text-slate-500 mt-1">Find this in your Shopify Admin URL when viewing the Blog.</p>
-          </div>
-
-          {result && (
-            <div className={`text-sm p-2 rounded ${result.type === 'success' ? 'bg-green-900/50 text-green-200' : 'bg-red-900/50 text-red-200'}`}>
-              {result.message}
-            </div>
-          )}
-
-          <button
-            onClick={onPublish}
-            disabled={publishing}
-            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2"
-          >
-            {publishing ? <Loader2 className="animate-spin" /> : <UploadCloud size={18} />}
-            Publish Now
-          </button>
-        </div>
-      </div>
     </div>
   );
 };
-
 
 export default ArticleGenerator;

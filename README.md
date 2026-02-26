@@ -1,63 +1,20 @@
-# Rare Visual SEO Agent
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-A powerful SEO and visual content generation tool built with React and Tailwind CSS.
+# Run and deploy your AI Studio app
 
-## Features
+This contains everything you need to run your app locally.
 
-- **Article Generator**: Create SEO-optimized content.
-- **Image Studio**: Generate visuals for your content.
-- **Research Tool**: Analyze keywords and competitors.
-- **Local SEO**: Optimize for local search.
-- **Chat Assistant**: AI-powered assistance.
+View your app in AI Studio: https://ai.studio/apps/drive/1LMEyvtssl_x6K8ILjiGAyw0dLThSd4Wa
 
-## Getting Started
+## Run Locally
 
-### Prerequisites
+**Prerequisites:**  Node.js
 
-- Node.js (v18 or higher recommended)
-- npm or yarn
 
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-### Development
-
-Start the development server:
-
-```bash
-npm run dev
-```
-
-### Build
-
-Build for production:
-
-```bash
-npm run build
-```
-
-The output will be in the `dist` directory.
-
-## Deployment
-
-This project is configured for **GitHub Pages**.
-
-1. Push changes to the `main` branch.
-2. The GitHub Action will automatically build and deploy.
-3. Enable GitHub Pages in your repository settings:
-   - Go to **Settings** > **Pages**
-   - Source: **Deploy from a branch** (Action will handle this, actually for custom action source should be "GitHub Actions")
-   - *Correction*: Since we use a custom workflow `deploy.yml` that uses `deploy-pages`, you should go to **Settings** > **Pages** and switch Source to **GitHub Actions**.
-
-## Technologies
-
-- React 19
-- Tailwind CSS
-- Vite
-- Lucide React
-- Google GenAI
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
